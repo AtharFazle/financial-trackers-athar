@@ -21,4 +21,5 @@ export type Transaction = {
   category: string;
   date: string;
   created_at: string;
+  deleted_at?: string | null;
 };

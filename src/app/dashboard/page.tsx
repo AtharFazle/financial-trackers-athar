@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Transaction } from "@/lib/supabase";
-import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X } from "lucide-react";
+import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays } from "lucide-react";
 import { format, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -62,6 +62,7 @@ export default function Dashboard() {
         .from("transactions")
         .select("*")
         .eq("user_id", uid)
+        .is("deleted_at", null)
         .order("date", { ascending: false });
         
       if (error) throw error;
@@ -97,7 +98,10 @@ export default function Dashboard() {
     if (!userId || !amount || !description) return;
     
     const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) return;
+    if (isNaN(numAmount) || numAmount <= 500) {
+      alert("Jumlah harus minimal 500");
+      return;
+    };
 
     setIsSubmitting(true);
     
@@ -128,6 +132,23 @@ export default function Dashboard() {
       alert("Gagal menambahkan transaksi.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+      setTransactions(transactions.filter(t => t.id !== id));
+    } catch (err: any) {
+      console.error("Error deleting transaction:", err.message);
+      alert("Gagal menghapus transaksi.");
     }
   };
 
@@ -170,9 +191,14 @@ export default function Dashboard() {
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Selamat Datang,</p>
           <h2 style={{ margin: 0 }}>{userName}</h2>
         </div>
-        <button className="btn-secondary" style={{ padding: "0.5rem", borderRadius: "12px", width: "auto" }} onClick={handleLogout} title="Keluar">
-          <LogOut size={20} />
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn-secondary" style={{ padding: "0.5rem", borderRadius: "12px", width: "auto" }} onClick={() => router.push("/history")} title="Laporan & Riwayat">
+            <CalendarDays size={20} />
+          </button>
+          <button className="btn-secondary" style={{ padding: "0.5rem", borderRadius: "12px", width: "auto", color: "var(--danger)" }} onClick={handleLogout} title="Keluar">
+            <LogOut size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="balance-card glass">
@@ -231,7 +257,7 @@ export default function Dashboard() {
           <div className="transaction-list glass">
             {transactions.map(t => (
               <div key={t.id} className="transaction-item">
-                <div className="transaction-left">
+                <div className="transaction-left" style={{ flex: 1 }}>
                   <div className={`transaction-icon ${t.type}`}>
                     {t.type === 'income' ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
                   </div>
@@ -242,8 +268,17 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div className={`transaction-amount ${t.type}`}>
-                  {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <div className={`transaction-amount ${t.type}`}>
+                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteTransaction(t.id)}
+                    style={{ color: "var(--danger)", padding: "0.25rem", opacity: 0.7 }}
+                    title="Hapus"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -271,6 +306,7 @@ export default function Dashboard() {
                   type="text"
                   inputMode="numeric"
                   className="form-control"
+                  min={500}
                   placeholder="Contoh: 50.000"
                   value={displayAmount}
                   onChange={handleAmountChange}

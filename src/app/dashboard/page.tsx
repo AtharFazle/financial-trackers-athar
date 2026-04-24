@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Transaction } from "@/lib/supabase";
-import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays } from "lucide-react";
+import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { format, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -32,18 +32,34 @@ export default function Dashboard() {
   const [userName, setUserName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSaldoVisible, setIsSaldoVisible] = useState(true);
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const [filter,setFilter] = useState({
+    category: "all",
+    search: "",
+  })
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const filteredTransactions = transactions.filter((transaction) => {
+    const matchCategory = filter.category === 'all' || transaction.category === filter.category;
+    const matchSearch = filter.search === '' || 
+                        transaction.description.toLowerCase().includes(filter.search.toLowerCase()) ||
+                        transaction.category.toLowerCase().includes(filter.search.toLowerCase());
+    return matchCategory && matchSearch;
+  });
+
   useEffect(() => {
     const savedId = localStorage.getItem("financial_tracker_user_id");
     const savedName = localStorage.getItem("financial_tracker_user_name");
+    const saldoVisible = localStorage.getItem("financial_tracker_saldo_visible");
+
+    setIsSaldoVisible(saldoVisible === "true");
     
     if (!savedId) {
       router.push("/");
@@ -202,12 +218,20 @@ export default function Dashboard() {
       </div>
 
       <div className="balance-card glass">
-        <h3 className="balance-title">Total Saldo</h3>
+        <div className="balance-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <span>Total Saldo</span>
+          {isSaldoVisible ? (
+            <EyeOff size={20} onClick={() => setIsSaldoVisible(false)} />
+          ) : (
+            <Eye size={20} onClick={() => setIsSaldoVisible(true)} />
+          )}
+        </div>
         <div className={`balance-amount ${balance < 0 ? 'negative' : 'positive'}`}>
-          {formatCurrency(balance)}
+          {isSaldoVisible ? formatCurrency(balance) : "*************"}
         </div>
         
-        <div className="stats-grid">
+        
+        {/* <div className="stats-grid">
           <div className="stat-item">
             <span className="stat-label flex items-center gap-2"><TrendingUp size={14} color="var(--secondary)" /> Pemasukan</span>
             <span className="stat-value income">{formatCurrency(totalIncome)}</span>
@@ -216,19 +240,41 @@ export default function Dashboard() {
             <span className="stat-label flex items-center gap-2"><TrendingDown size={14} color="var(--danger)" /> Pengeluaran</span>
             <span className="stat-value expense">{formatCurrency(totalExpense)}</span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="stats-grid glass mb-4" style={{ padding: "1rem", borderRadius: "16px", borderTop: "1px solid var(--surface-border)" }}>
         <div className="stat-item">
-          <span className="stat-label">Pengeluaran Bulan Ini</span>
-          <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisMonthExpense)}</span>
-        </div>
-        <div className="stat-item">
           <span className="stat-label">Pengeluaran Minggu Ini</span>
           <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisWeekExpense)}</span>
         </div>
+        <div className="stat-item">
+          <span className="stat-label">Pengeluaran Bulan Ini</span>
+          <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisMonthExpense)}</span>
+        </div>
       </div>
+
+      <input 
+        type="text" 
+        placeholder="Cari..." 
+        className="form-control mb-4"
+        value={filter.search}
+        onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+      />
+      <select 
+          className="form-control" 
+          value={filter.category} 
+          onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+          style={{ appearance: 'none', marginBottom: "1rem" }}
+        >
+                      <option value="all">Semua Kategori</option>
+                      <option value="Makanan">Makanan</option>
+                      <option value="Transportasi">Transportasi</option>
+                      <option value="Belanja">Belanja</option>
+                      <option value="Tagihan">Tagihan</option>
+                      <option value="all">Semua Kategori</option>
+                      <option value="Gaji">Gaji</option>
+        </select>
 
       <div className="action-grid">
         <button className="btn btn-success flex items-center justify-center" onClick={() => openModal('income')}>
@@ -255,7 +301,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="transaction-list glass">
-            {transactions.map(t => (
+            {filteredTransactions.map(t => (
               <div key={t.id} className="transaction-item">
                 <div className="transaction-left" style={{ flex: 1 }}>
                   <div className={`transaction-icon ${t.type}`}>
@@ -333,20 +379,36 @@ export default function Dashboard() {
 
               <div className="form-group mb-4">
                 <label className="form-label">Kategori (Opsional)</label>
-                <select 
-                  className="form-control" 
-                  value={category} 
-                  onChange={(e) => setCategory(e.target.value)}
-                  style={{ appearance: 'none' }}
-                >
-                  <option value="">Pilih Kategori</option>
-                  <option value="Makanan">Makanan</option>
-                  <option value="Transportasi">Transportasi</option>
-                  <option value="Belanja">Belanja</option>
-                  <option value="Tagihan">Tagihan</option>
-                  <option value="Gaji">Gaji</option>
-                  <option value="Lainnya">Lainnya</option>
-                </select>
+
+                {category !== "lainnya" ? (
+                  <div>
+                                <select 
+                                  className="form-control" 
+                                  value={category} 
+                                  onChange={(e) => setCategory(e.target.value)}
+                                  style={{ appearance: 'none' }}
+                                >
+
+                                  {transactionType == "income" ? (
+                                    <>
+                                      <option value="">Pilih Kategori</option>
+                                      <option value="Gaji">Gaji</option>
+                                      <option value="Lainnya">Lainnya</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="">Pilih Kategori</option>
+                                      <option value="Makanan">Makanan</option>
+                                      <option value="Transportasi">Transportasi</option>
+                                      <option value="Belanja">Belanja</option>
+                                      <option value="Tagihan">Tagihan</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+                ) : (
+                    <input type="text" className="form-control" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Kategori" />
+                )}
               </div>
 
               <button 

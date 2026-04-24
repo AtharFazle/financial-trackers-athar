@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, User } from "@/lib/supabase";
+import { User } from "@/lib/supabase";
 import { LogIn, UserPlus, Lock, ArrowLeft } from "lucide-react";
 
 export default function Home() {
@@ -27,16 +27,13 @@ export default function Home() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const res = await fetch("/api/auth/users");
+      const json = await res.json();
       
-      if (error) throw error;
-      setUsers(data || []);
+      if (!res.ok) throw new Error(json.error || "Gagal memuat pengguna");
+      setUsers(json.data || []);
     } catch (err: any) {
       console.error("Error fetching users:", err.message);
-      // We don't block the UI if it fails, just show empty
     } finally {
       setLoading(false);
     }
@@ -50,33 +47,48 @@ export default function Home() {
     setError("");
 
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .insert([{ name: newUserName.trim(), password: newUserPassword }])
-        .select()
-        .single();
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newUserName.trim(), password: newUserPassword }),
+      });
+      const json = await res.json();
 
-      if (error) throw error;
+      if (!res.ok) throw new Error(json.error || "Gagal membuat pengguna");
 
-      if (data) {
-        selectUser(data);
+      if (json.data) {
+        selectUser(json.data);
       }
     } catch (err: any) {
       console.error("Error creating user:", err.message);
-      setError("Gagal membuat user. Pastikan Supabase sudah di-setup dengan benar.");
+      setError("Gagal membuat profil. Silakan coba lagi.");
       setLoading(false);
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUserForLogin) return;
     
-    // Validate password
-    if (selectedUserForLogin.password === loginPassword) {
-      selectUser(selectedUserForLogin);
-    } else {
-      setError("Password salah!");
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserForLogin.id, password: loginPassword }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) throw new Error(json.error || "Password salah!");
+
+      if (json.data) {
+        selectUser(json.data);
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
     }
   };
 
@@ -115,10 +127,10 @@ export default function Home() {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={!loginPassword.trim()}
+                  disabled={!loginPassword.trim() || loading}
                 >
                   <LogIn size={20} />
-                  Masuk
+                  {loading ? 'Memeriksa...' : 'Masuk'}
                 </button>
                 <button
                   type="button"

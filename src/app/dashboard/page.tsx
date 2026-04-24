@@ -182,11 +182,11 @@ export default function Dashboard() {
     
   const balance = totalIncome - totalExpense;
 
-  const thisMonthExpense = transactions
+  const thisMonthExpense = filteredTransactions
     .filter(t => t.type === 'expense' && isThisMonth(parseISO(t.date)))
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const thisWeekExpense = transactions
+  const thisWeekExpense = filteredTransactions
     .filter(t => t.type === 'expense' && isThisWeek(parseISO(t.date)))
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -243,21 +243,21 @@ export default function Dashboard() {
         </div> */}
       </div>
 
-      <div className="stats-grid glass mb-4" style={{ padding: "1rem", borderRadius: "16px", borderTop: "1px solid var(--surface-border)" }}>
-        <div className="stat-item">
-          <span className="stat-label">Pengeluaran Minggu Ini</span>
-          <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisWeekExpense)}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Pengeluaran Bulan Ini</span>
-          <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisMonthExpense)}</span>
-        </div>
+            <div className="action-grid">
+        <button className="btn btn-success flex items-center justify-center" onClick={() => openModal('income')}>
+          <PlusCircle size={20} />
+          Pemasukan
+        </button>
+        <button className="btn btn-danger flex items-center justify-center" onClick={() => openModal('expense')}>
+          <MinusCircle size={20} />
+          Pengeluaran
+        </button>
       </div>
 
       <input 
         type="text" 
         placeholder="Cari..." 
-        className="form-control mb-4"
+        className="form-control mb-2"
         value={filter.search}
         onChange={(e) => setFilter({ ...filter, search: e.target.value })}
       />
@@ -272,19 +272,18 @@ export default function Dashboard() {
                       <option value="Transportasi">Transportasi</option>
                       <option value="Belanja">Belanja</option>
                       <option value="Tagihan">Tagihan</option>
-                      <option value="all">Semua Kategori</option>
                       <option value="Gaji">Gaji</option>
         </select>
 
-      <div className="action-grid">
-        <button className="btn btn-success flex items-center justify-center" onClick={() => openModal('income')}>
-          <PlusCircle size={20} />
-          Pemasukan
-        </button>
-        <button className="btn btn-danger flex items-center justify-center" onClick={() => openModal('expense')}>
-          <MinusCircle size={20} />
-          Pengeluaran
-        </button>
+              <div className="stats-grid glass mb-4" style={{ padding: "1rem", borderRadius: "16px", borderTop: "1px solid var(--surface-border)" }}>
+        <div className="stat-item">
+          <span className="stat-label">Pengeluaran Minggu Ini</span>
+          <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisWeekExpense)}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Pengeluaran Bulan Ini</span>
+          <span className="stat-value" style={{ fontSize: "1.1rem" }}>{formatCurrency(thisMonthExpense)}</span>
+        </div>
       </div>
 
       <div className="transactions-section">

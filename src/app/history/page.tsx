@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction } from "@/lib/supabase";
 import { ArrowLeft, TrendingUp, TrendingDown, Search, Wallet } from "lucide-react";
@@ -18,6 +18,11 @@ export default function History() {
   // Filter state
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [filter, setFilter] = useState({
+    category: "all",
+    search: "",
+    type: "all",
+  })
 
   useEffect(() => {
     const savedId = localStorage.getItem("financial_tracker_user_id");
@@ -58,33 +63,45 @@ export default function History() {
     }).format(val);
   };
 
-  // Filter Logic
-  const filteredTransactions = transactions.filter(t => {
-    if (filterType === 'all') return true;
-    
-    const tDate = parseISO(t.date);
-    const filterDate = parseISO(selectedDate);
-
-    if (filterType === 'day') {
-      return isSameDay(tDate, filterDate);
-    } 
-    else if (filterType === 'week') {
-      const start = startOfWeek(filterDate, { weekStartsOn: 1 }); // Monday start
-      const end = endOfWeek(filterDate, { weekStartsOn: 1 });
-      return isWithinInterval(tDate, { start, end });
-    } 
-    else if (filterType === 'month') {
-      const start = startOfMonth(filterDate);
-      const end = endOfMonth(filterDate);
-      return isWithinInterval(tDate, { start, end });
-    }
+  const filterCategoryAndSearch = (t: Transaction) => {
+    if (filter.category !== 'all' && t.category !== filter.category) return false;
+    if (filter.search !== '' && !t.description.toLowerCase().includes(filter.search.toLowerCase())) return false;
     return true;
-  });
+  }
+
+const filteredTransactions = useMemo(() => {
+  return transactions
+    .filter(filterCategoryAndSearch)
+    .filter(t => {
+      if (filterType === 'all') return true;
+
+      const tDate = parseISO(t.date);
+      const filterDate = parseISO(selectedDate);
+
+      if (filterType === 'day') {
+        return isSameDay(tDate, filterDate);
+      }
+
+      if (filterType === 'week') {
+        const start = startOfWeek(filterDate, { weekStartsOn: 1 });
+        const end = endOfWeek(filterDate, { weekStartsOn: 1 });
+        return isWithinInterval(tDate, { start, end });
+      }
+
+      if (filterType === 'month') {
+        const start = startOfMonth(filterDate);
+        const end = endOfMonth(filterDate);
+        return isWithinInterval(tDate, { start, end });
+      }
+
+      return false;
+    });
+}, [transactions, filterType, selectedDate, filter]);
 
   const totalIncome = filteredTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
-    
+
   const totalExpense = filteredTransactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -106,29 +123,29 @@ export default function History() {
       <div className="glass" style={{ padding: "1.5rem", borderRadius: "16px", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div style={{ display: "flex", gap: "0.5rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
-            <button 
-              className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-secondary'}`} 
+            <button
+              className={`btn ${filterType === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "0.875rem", whiteSpace: "nowrap" }}
               onClick={() => setFilterType('all')}
             >
               Semua Waktu
             </button>
-            <button 
-              className={`btn ${filterType === 'day' ? 'btn-primary' : 'btn-secondary'}`} 
+            <button
+              className={`btn ${filterType === 'day' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "0.875rem", whiteSpace: "nowrap" }}
               onClick={() => setFilterType('day')}
             >
               Harian
             </button>
-            <button 
-              className={`btn ${filterType === 'week' ? 'btn-primary' : 'btn-secondary'}`} 
+            <button
+              className={`btn ${filterType === 'week' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "0.875rem", whiteSpace: "nowrap" }}
               onClick={() => setFilterType('week')}
             >
               Mingguan
             </button>
-            <button 
-              className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-secondary'}`} 
+            <button
+              className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "0.875rem", whiteSpace: "nowrap" }}
               onClick={() => setFilterType('month')}
             >
@@ -139,8 +156,8 @@ export default function History() {
           {filterType !== 'all' && (
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">
-                {filterType === 'day' ? 'Pilih Tanggal' : 
-                 filterType === 'week' ? 'Pilih Tanggal dalam Minggu' : 'Pilih Tanggal dalam Bulan'}
+                {filterType === 'day' ? 'Pilih Tanggal' :
+                  filterType === 'week' ? 'Pilih Tanggal dalam Minggu' : 'Pilih Tanggal dalam Bulan'}
               </label>
               <input
                 type="date"
@@ -151,6 +168,27 @@ export default function History() {
               />
             </div>
           )}
+
+          <input
+            type="text"
+            placeholder="Cari..."
+            className="form-control "
+            value={filter.search}
+            onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+          />
+          <select
+            className="form-control"
+            value={filter.category}
+            onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+            style={{ appearance: 'none' }}
+          >
+            <option value="all">Semua Kategori</option>
+            <option value="Makanan">Makanan</option>
+            <option value="Transportasi">Transportasi</option>
+            <option value="Belanja">Belanja</option>
+            <option value="Tagihan">Tagihan</option>
+            <option value="Gaji">Gaji</option>
+          </select>
         </div>
       </div>
 
@@ -174,7 +212,6 @@ export default function History() {
             {filteredTransactions.length} transaksi
           </span>
         </div>
-
         {loading ? (
           <p className="text-center mt-4">Memuat data...</p>
         ) : filteredTransactions.length === 0 ? (

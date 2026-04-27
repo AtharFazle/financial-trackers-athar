@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Transaction } from "@/lib/supabase";
 import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff } from "lucide-react";
@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [category, setCategory] = useState("Makanan");
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputOtherCategory = useRef<HTMLInputElement>(null);
 
   const filteredTransactions = transactions.filter((transaction) => {
     const matchCategory = filter.category === 'all' || transaction.category === filter.category;
@@ -100,12 +101,15 @@ export default function Dashboard() {
     }
   };
 
-  const customSetCategory = (value: string) => {
+  const customSetCategory = async (value: string) => {
     if (value !== "Lainnya") {
       setCategory(value);
       setIsCustomCategory(false);
     } else {
       setCategory("");
+      setTimeout(() => {
+        inputOtherCategory.current?.focus();
+      }, 100);
       setIsCustomCategory(true);
     }
   };
@@ -399,7 +403,7 @@ export default function Dashboard() {
               <div className="form-group mb-4">
                 <label className="form-label">Kategori (Opsional)</label>
                 {isCustomCategory ? (
-                  <input type="text" className="form-control" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Kategori" />
+                  <input ref={inputOtherCategory} type="text" className="form-control" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Kategori" />
                 ) : (
                     <div>
                                 <select 

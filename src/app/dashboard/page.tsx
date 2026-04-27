@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction } from "@/lib/supabase";
 import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff } from "lucide-react";
-import { format, isThisWeek, isThisMonth, parseISO } from "date-fns";
+import { format, isThisWeek, isThisMonth, parseISO, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { id } from "date-fns/locale";
 
 const terbilang = (angka: number): string => {
@@ -212,11 +212,21 @@ export default function Dashboard() {
   const balance = totalIncome - totalExpense;
 
   const thisMonthExpense = filteredTransactions
-    .filter(t => t.type === 'expense' && isThisMonth(parseISO(t.date)))
+    .filter(t =>{
+      const filterDate = parseISO(new Date().toISOString());
+      const start = startOfMonth(filterDate);
+      const end = endOfMonth(filterDate);
+      return isWithinInterval(parseISO(t.date), { start, end }) && t.type === 'expense';
+    })
     .reduce((sum, t) => sum + t.amount, 0);
 
   const thisWeekExpense = filteredTransactions
-    .filter(t => t.type === 'expense' && isThisWeek(parseISO(t.date)))
+    .filter(t=>{
+      const filterDate = parseISO(new Date().toISOString());
+      const start = startOfWeek(filterDate, { weekStartsOn: 1 });
+      const end = endOfWeek(filterDate, { weekStartsOn: 1 });
+      return isWithinInterval(parseISO(t.date), { start, end }) && t.type === 'expense';
+    })
     .reduce((sum, t) => sum + t.amount, 0);
 
   const formatCurrency = (val: number) => {

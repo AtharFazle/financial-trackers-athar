@@ -124,7 +124,7 @@ export default function Dashboard() {
     setTransactionType(type);
     setAmount("");
     setDescription("");
-    setCategory("");
+    setCategory("Makanan");
     setIsModalOpen(true);
   };
 

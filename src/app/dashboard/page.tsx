@@ -43,7 +43,8 @@ export default function Dashboard() {
   })
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState("Makanan");
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredTransactions = transactions.filter((transaction) => {
@@ -74,19 +75,38 @@ export default function Dashboard() {
   const fetchTransactions = async (uid: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", uid)
-        .is("deleted_at", null)
-        .order("date", { ascending: false });
-        
+
+      const now = new Date();
+
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const res = await fetch("/api/transactions", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "user_id": uid,
+          "date_start": startOfMonth.toISOString(),
+          "date_end": startOfNextMonth.toISOString()
+        }
+      });
+      const { data, error } = await res.json();
       if (error) throw error;
       setTransactions(data || []);
     } catch (err: any) {
       console.error("Error fetching transactions:", err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const customSetCategory = (value: string) => {
+    if (value !== "Lainnya") {
+      setCategory(value);
+      setIsCustomCategory(false);
+    } else {
+      setCategory("");
+      setIsCustomCategory(true);
     }
   };
 
@@ -378,35 +398,36 @@ export default function Dashboard() {
 
               <div className="form-group mb-4">
                 <label className="form-label">Kategori (Opsional)</label>
-
-                {category !== "lainnya" ? (
-                  <div>
+                {isCustomCategory ? (
+                  <input type="text" className="form-control" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Kategori" />
+                ) : (
+                    <div>
                                 <select 
                                   className="form-control" 
                                   value={category} 
-                                  onChange={(e) => setCategory(e.target.value)}
+                                  onChange={(e) => customSetCategory(e.target.value)}
                                   style={{ appearance: 'none' }}
                                 >
 
                                   {transactionType == "income" ? (
                                     <>
-                                      <option value="">Pilih Kategori</option>
+                                      {/* <option value="">Pilih Kategori</option> */}
                                       <option value="Gaji">Gaji</option>
                                       <option value="Lainnya">Lainnya</option>
                                     </>
                                   ) : (
                                     <>
-                                      <option value="">Pilih Kategori</option>
+                                      {/* <option value="">Pilih Kategori</option> */}
                                       <option value="Makanan">Makanan</option>
                                       <option value="Transportasi">Transportasi</option>
                                       <option value="Belanja">Belanja</option>
                                       <option value="Tagihan">Tagihan</option>
+                                      <option value="Top up">Top UP</option>
+                                      <option value="Lainnya">Lainnya</option>
                                     </>
                                   )}
                                 </select>
-                              </div>
-                ) : (
-                    <input type="text" className="form-control" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Kategori" />
+                  </div>
                 )}
               </div>
 

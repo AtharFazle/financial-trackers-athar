@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, Transaction } from "@/lib/supabase";
+import { Transaction } from "@/lib/supabase";
 import { ArrowLeft, TrendingUp, TrendingDown, Search, Wallet } from "lucide-react";
 import { format, parseISO, isSameDay, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { id } from "date-fns/locale";
@@ -32,14 +32,16 @@ export default function History() {
   const fetchTransactions = async (uid: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", uid)
-        .is("deleted_at", null)
-        .order("date", { ascending: false });
-        
-      if (error) throw error;
+      const res = await fetch("/api/transactions", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "user_id": uid,
+        },
+      });
+
+      const { data, error } = await res.json();
+      if (!res.ok) throw new Error(error || "Failed to fetch transactions");
       setTransactions(data || []);
     } catch (err: any) {
       console.error("Error fetching transactions:", err.message);

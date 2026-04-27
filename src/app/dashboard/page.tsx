@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, Transaction } from "@/lib/supabase";
+import { Transaction } from "@/lib/supabase";
 import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { format, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -146,22 +146,23 @@ export default function Dashboard() {
     setIsSubmitting(true);
     
     try {
-      const newTransaction = {
-        user_id: userId,
-        type: transactionType,
-        amount: numAmount,
-        description,
-        category: category || "Lainnya",
-        date: new Date().toISOString(),
-      };
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "user_id": userId,
+        },
+        body: JSON.stringify({
+          type: transactionType,
+          amount: numAmount,
+          description,
+          category: category || "Lainnya",
+          date: new Date().toISOString(),
+        }),
+      });
 
-      const { data, error } = await supabase
-        .from("transactions")
-        .insert([newTransaction])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const { data, error } = await res.json();
+      if (!res.ok) throw new Error(error || "Failed to add transaction");
 
       if (data) {
         setTransactions([data, ...transactions]);
@@ -179,12 +180,16 @@ export default function Dashboard() {
     if (!confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
 
     try {
-      const { error } = await supabase
-        .from("transactions")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", id);
+      const res = await fetch(`/api/transactions/${id}`, {
+        method: "DELETE",
+        headers: {
+          "user_id": userId!,
+        },
+      });
 
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to delete");
+
       setTransactions(transactions.filter(t => t.id !== id));
     } catch (err: any) {
       console.error("Error deleting transaction:", err.message);

@@ -124,7 +124,14 @@ export default function Dashboard() {
     setTransactionType(type);
     setAmount("");
     setDescription("");
-    setCategory("Makanan");
+
+    if(type == 'expense'){
+      setCategory("Makanan");
+    }else {
+      setCategory("Gaji")
+    }
+
+    setIsCustomCategory(false);
     setIsModalOpen(true);
   };
 

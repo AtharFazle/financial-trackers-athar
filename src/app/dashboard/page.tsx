@@ -77,22 +77,22 @@ export default function Dashboard() {
     try {
       setLoading(true);
 
-      const now = new Date();
-
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const startDate = new Date(1972, 0, 1); // 1 Jan 1972
+      const endDate = new Date(2100, 11, 31); // 31 Dec 2100
 
       const res = await fetch("/api/transactions", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           "user_id": uid,
-          "date_start": startOfMonth.toISOString(),
-          "date_end": startOfNextMonth.toISOString()
+          "date_start": startDate.toISOString(),
+          "date_end": endDate.toISOString()
         }
       });
+
       const { data, error } = await res.json();
       if (error) throw error;
+
       setTransactions(data || []);
     } catch (err: any) {
       console.error("Error fetching transactions:", err.message);

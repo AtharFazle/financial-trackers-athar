@@ -46,6 +46,8 @@ export default function History() {
       });
 
       const { data, error } = await res.json();
+
+      console.log(data,'data')
       if (!res.ok) throw new Error(error || "Failed to fetch transactions");
       setTransactions(data || []);
     } catch (err: any) {
@@ -89,8 +91,22 @@ const filteredTransactions = useMemo(() => {
       }
 
       if (filterType === 'month') {
-        const start = startOfMonth(filterDate);
-        const end = endOfMonth(filterDate);
+        const start = new Date(
+          filterDate.getFullYear(),
+          filterDate.getMonth() - 1,
+          25
+        );
+
+        const end = new Date(
+          filterDate.getFullYear(),
+          filterDate.getMonth(),
+          25
+        );
+
+        console.log('filter',format(filterDate, 'dd-MM-yyyy HH:mm:ss'))
+        console.log('start',format(start, 'dd-MM-yyyy HH:mm:ss'))
+        console.log('end',format(end, 'dd-MM-yyyy HH:mm:ss'))
+
         return isWithinInterval(tDate, { start, end });
       }
 

@@ -16,9 +16,8 @@ export async function GET(request: NextRequest) {
     const dateStart = request.headers.get('date_start');
     const dateEnd = request.headers.get('date_end');
 
-    const now = new Date();
-    const start = dateStart || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const end = dateEnd || new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    const start = dateStart || new Date(1972, 0, 1).toISOString();
+    const end = dateEnd || new Date(2100, 11, 31).toISOString();
 
     const { data, error } = await supabase
       .from('transactions')

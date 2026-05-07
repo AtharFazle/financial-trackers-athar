@@ -202,6 +202,8 @@ const filteredTransactions = useMemo(() => {
             <option value="Makanan">Makanan</option>
             <option value="Transportasi">Transportasi</option>
             <option value="Belanja">Belanja</option>
+            <option value="pacaran">Pacaran</option>
+            <option value="liburan">Pacaran</option>
             <option value="Tagihan">Tagihan</option>
             <option value="Gaji">Gaji</option>
           </select>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction } from "@/lib/supabase";
 import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff } from "lucide-react";
-import { format, isThisWeek, isThisMonth, parseISO, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { id } from "date-fns/locale";
 
 const terbilang = (angka: number): string => {
@@ -319,6 +319,8 @@ export default function Dashboard() {
                       <option value="Belanja">Belanja</option>
                       <option value="Tagihan">Tagihan</option>
                       <option value="Gaji">Gaji</option>
+                      <option value="pacaran">Pacaran</option>
+                      <option value="liburan">Liburan</option>
         </select>
 
               <div className="stats-grid glass mb-4" style={{ padding: "1rem", borderRadius: "16px", borderTop: "1px solid var(--surface-border)" }}>
@@ -439,12 +441,15 @@ export default function Dashboard() {
                                     <>
                                       {/* <option value="">Pilih Kategori</option> */}
                                       <option value="Gaji">Gaji</option>
+                                      <option value="Lemburan">Lemburan</option>
                                       <option value="Lainnya">Lainnya</option>
                                     </>
                                   ) : (
                                     <>
                                       {/* <option value="">Pilih Kategori</option> */}
                                       <option value="Makanan">Makanan</option>
+                                      <option value="pacaran">Pacaran</option>
+                                       <option value="liburan">Liburan</option>
                                       <option value="Transportasi">Transportasi</option>
                                       <option value="Belanja">Belanja</option>
                                       <option value="Tagihan">Tagihan</option>

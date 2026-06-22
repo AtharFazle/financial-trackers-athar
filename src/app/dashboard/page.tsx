@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction } from "@/lib/supabase";
-import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff } from "lucide-react";
+import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff, ScanText, Check, ChevronLeft, Sparkles, AlertCircle, Mic, MicOff } from "lucide-react";
 import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -26,6 +26,17 @@ const terbilang = (angka: number): string => {
   return '';
 };
 
+type ParsedTransaction = {
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category: string;
+  date: string;
+};
+
+const EXPENSE_CATEGORIES = ["Makanan", "Pacaran", "Liburan", "Transportasi", "Belanja", "Tagihan", "Top up", "Lainnya"];
+const INCOME_CATEGORIES = ["Gaji", "Lemburan", "Lainnya"];
+
 export default function Dashboard() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
@@ -47,6 +58,21 @@ export default function Dashboard() {
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputOtherCategory = useRef<HTMLInputElement>(null);
+
+  // Scan text state
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [scanText, setScanText] = useState("");
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsedTransactions, setParsedTransactions] = useState<ParsedTransaction[]>([]);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Speech recognition state
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const filteredTransactions = transactions.filter((transaction) => {
     const matchCategory = filter.category === 'all' || transaction.category === filter.category;
@@ -71,6 +97,19 @@ export default function Dashboard() {
     setUserId(savedId);
     setUserName(savedName);
     fetchTransactions(savedId);
+
+    // Check speech recognition support
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setSpeechSupported(true);
+    }
+
+    return () => {
+      // Cleanup speech recognition on unmount
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
   }, [router]);
 
   const fetchTransactions = async (uid: string) => {
@@ -204,6 +243,224 @@ export default function Dashboard() {
     }
   };
 
+  // ========== SCAN TEXT HANDLERS ==========
+  const openScanModal = () => {
+    setScanText("");
+    setParseError(null);
+    setParsedTransactions([]);
+    setIsConfirmModalOpen(false);
+    setSaveSuccess(false);
+    setIsListening(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+    setIsScanModalOpen(true);
+  };
+
+  const closeScanModal = () => {
+    if(parsedTransactions.length > 0){
+      setIsConfirmModalOpen(true);
+    }else{
+      setIsScanModalOpen(false);
+      setIsModalOpen(false);
+      setTransactionType('expense');
+      setAmount("");
+      setDescription("");
+      setCategory("Makanan");
+      setIsCustomCategory(false);
+    }
+  };
+
+  // ========== SPEECH RECOGNITION HANDLERS ==========
+  const toggleSpeechRecognition = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const startListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setParseError("Browser Anda tidak mendukung speech recognition. Gunakan Chrome atau Edge.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    // Snapshot teks awal sekali saja, jangan baca scanText di tiap onresult
+    const baseText = scanText ? scanText.trimEnd() + ' ' : '';
+    let finalTranscript = '';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setParseError(null);
+    };
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      setScanText(baseText + finalTranscript + interimTranscript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed') {
+        setParseError('Akses mikrofon ditolak. Izinkan akses mikrofon di pengaturan browser.');
+      } else if (event.error === 'no-speech') {
+        setParseError('Tidak ada suara terdeteksi. Coba bicara lebih keras.');
+      } else if (event.error !== 'aborted') {
+        setParseError(`Error speech recognition: ${event.error}`);
+      }
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      // Commit interim terakhir agar tidak hilang saat berhenti
+      setScanText(baseText + finalTranscript);
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  };
+
+  const handleParseText = async () => {
+    if (!userId || !scanText.trim()) return;
+
+    setIsParsing(true);
+    setParseError(null);
+
+    try {
+      const res = await fetch("/api/transactions/parse", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "user_id": userId,
+        },
+        body: JSON.stringify({ text: scanText.trim() }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || "Gagal memproses teks");
+      }
+
+      if (json.transactions.length === 0) {
+        setParseError("Tidak ditemukan transaksi dalam teks. Coba tulis dengan lebih detail, contoh: 'makan nasi goreng 25rb'");
+        return;
+      }
+
+      setParsedTransactions(json.transactions);
+      setIsScanModalOpen(false);
+      setIsConfirmModalOpen(true);
+    } catch (err: any) {
+      setParseError(err.message);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const updateParsedTransaction = (index: number, field: keyof ParsedTransaction, value: string | number) => {
+    setParsedTransactions(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+
+      // When toggling type, also reset category
+      if (field === 'type') {
+        updated[index].category = value === 'income' ? 'Gaji' : 'Makanan';
+      }
+
+      return updated;
+    });
+  };
+
+  const removeParsedTransaction = (index: number) => {
+    setParsedTransactions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveAll = async () => {
+    if (!userId || parsedTransactions.length === 0) return;
+
+    setIsSavingAll(true);
+
+    try {
+      const savedTransactions: Transaction[] = [];
+
+      for (const pt of parsedTransactions) {
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "user_id": userId,
+          },
+          body: JSON.stringify({
+            type: pt.type,
+            amount: pt.amount,
+            description: pt.description,
+            category: pt.category || "Lainnya",
+            date: pt.date || new Date().toISOString(),
+          }),
+        });
+
+        const { data, error } = await res.json();
+        if (!res.ok) throw new Error(error || "Failed to save transaction");
+
+        if (data) {
+          savedTransactions.push(data);
+        }
+      }
+
+      // Add all saved transactions to the list
+      setTransactions(prev => [...savedTransactions, ...prev]);
+      setSaveSuccess(true);
+
+      // Close after a brief animation
+      setTimeout(() => {
+        setIsConfirmModalOpen(false);
+        setParsedTransactions([]);
+        setSaveSuccess(false);
+      }, 1500);
+    } catch (err: any) {
+      console.error("Error saving transactions:", err.message);
+      alert(`Gagal menyimpan transaksi: ${err.message}`);
+    } finally {
+      setIsSavingAll(false);
+    }
+  };
+
+
+  const formatParsedDate = (dateStr: string) => {
+    try {
+      return format(parseISO(dateStr), 'dd MMM yyyy', { locale: id });
+    } catch {
+      return format(new Date(), 'dd MMM yyyy', { locale: id });
+    }
+  };
+
   const displayAmount = amount ? Number(amount).toLocaleString('id-ID') : "";
   const spelledAmount = amount ? terbilang(Number(amount)).trim() : "";
 
@@ -300,6 +557,23 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Scan Text & Voice Buttons */}
+      <div className="scan-buttons-row">
+        <button className="btn btn-scan flex items-center justify-center" onClick={openScanModal} id="scan-text-btn">
+          <Sparkles size={18} />
+          Scan Teks
+        </button>
+        {/* {speechSupported && (
+          <button className="btn btn-voice flex items-center justify-center" onClick={() => {
+            openScanModal();
+            setTimeout(() => startListening(), 300);
+          }} id="voice-input-btn">
+            <Mic size={18} />
+            Bicara
+          </button>
+        )} */}
+      </div>
+
       <input 
         type="text" 
         placeholder="Cari..." 
@@ -379,7 +653,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Original Add Transaction Modal */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false) }}>
           <div className="modal-content">
@@ -470,6 +744,274 @@ export default function Dashboard() {
                 {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Scan Text Input Modal */}
+      {isScanModalOpen && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeScanModal}}>
+          <div className="modal-content scan-modal">
+            <div className="modal-header">
+              <h2 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Sparkles size={24} className="scan-icon-glow" />
+                <span className="scan-title-gradient">Scan Teks</span>
+              </h2>
+              <button className="modal-close" onClick={closeScanModal}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: "1rem", lineHeight: 1.6 }}>
+              Tulis, tempel, atau <strong style={{ color: "#c4b5fd" }}>bicara</strong> teks transaksimu. AI akan mengekstrak data secara otomatis.
+            </p>
+
+            <div className="scan-examples">
+              <span className="scan-example-label">Contoh:</span>
+              <div className="scan-example-chips">
+                <button 
+                  type="button" 
+                  className="scan-chip" 
+                  onClick={() => setScanText("Kopi 10 ribu rupiah")}
+                >
+                  &quot;Kopi 10 rb&quot;
+                </button>
+                <button 
+                  type="button" 
+                  className="scan-chip" 
+                  onClick={() => setScanText("terima gaji bulan ini 5jt")}
+                >
+                  &quot;gaji 5jt&quot;
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <div className="scan-textarea-wrapper">
+                <textarea
+                  className={`form-control scan-textarea ${isListening ? 'listening' : ''}`}
+                  placeholder={isListening ? "Bicara sekarang... 🎙️" : "Contoh: hari ini makan nasi goreng 25rb, naik grab ke kantor 15rb, sama beli kopi starbucks 18rb..."}
+                  value={scanText}
+                  onChange={(e) => setScanText(e.target.value)}
+                  disabled={isListening}
+                  rows={5}
+                  id="scan-text-input"
+                  autoFocus
+                />
+                {speechSupported && (
+                  <button
+                    type="button"
+                    className={`mic-btn ${isListening ? 'active' : ''}`}
+                    onClick={toggleSpeechRecognition}
+                    title={isListening ? 'Berhenti mendengarkan' : 'Bicara untuk input teks'}
+                    id="mic-btn"
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff size={20} />
+                        <span className="mic-pulse-ring"></span>
+                      </>
+                    ) : (
+                      <Mic size={20} />
+                    )}
+                  </button>
+                )}
+              </div>
+              <div className="scan-char-count">
+                {isListening && <span className="listening-indicator">● Mendengarkan...</span>}
+                <span>{scanText.length} / 5000</span>
+              </div>
+            </div>
+
+            {parseError && (
+              <div className="scan-error">
+                <AlertCircle size={16} />
+                <span>{parseError}</span>
+              </div>
+            )}
+
+            <button
+              className="btn btn-scan w-full"
+              onClick={handleParseText}
+              disabled={isParsing || !scanText.trim()}
+              id="process-text-btn"
+            >
+              {isParsing ? (
+                <>
+                  <span className="scan-loading-dots">
+                    <span></span><span></span><span></span>
+                  </span>
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} />
+                  Proses dengan AI
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {isConfirmModalOpen && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !isSavingAll) setIsConfirmModalOpen(false) }}>
+          <div className="modal-content confirm-modal">
+            {saveSuccess ? (
+              <div className="save-success-state">
+                <div className="success-checkmark">
+                  <Check size={48} />
+                </div>
+                <h3>Berhasil Disimpan!</h3>
+                <p>{parsedTransactions.length} transaksi telah ditambahkan</p>
+              </div>
+            ) : (
+              <>
+                <div className="modal-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <button
+                      className="modal-close"
+                      onClick={() => {
+                        setIsConfirmModalOpen(false);
+                        setIsScanModalOpen(true);
+                      }}
+                      style={{ marginRight: "0.25rem" }}
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <h2 style={{ margin: 0, fontSize: "1.15rem" }}>
+                      Hasil Scan ({parsedTransactions.length} transaksi)
+                    </h2>
+                  </div>
+                  <button className="modal-close" onClick={() => setIsConfirmModalOpen(false)}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="parsed-list">
+                  {parsedTransactions.map((pt, index) => (
+                    <div key={index} className="parsed-card">
+                      <div className="parsed-card-header">
+                        <button
+                          type="button"
+                          className={`parsed-type-toggle ${pt.type}`}
+                          onClick={() => updateParsedTransaction(index, 'type', pt.type === 'income' ? 'expense' : 'income')}
+                          title="Klik untuk ubah tipe"
+                        >
+                          {pt.type === 'income' ? (
+                            <><TrendingUp size={14} /> Pemasukan</>
+                          ) : (
+                            <><TrendingDown size={14} /> Pengeluaran</>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="parsed-remove-btn"
+                          onClick={() => removeParsedTransaction(index)}
+                          title="Hapus"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <div className="parsed-card-body">
+                        <div className="parsed-field">
+                          <label>Jumlah</label>
+                          <div className="parsed-amount-input">
+                            <span className="parsed-currency">Rp</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={pt.amount.toLocaleString('id-ID')}
+                              onChange={(e) => {
+                                const num = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+                                updateParsedTransaction(index, 'amount', num);
+                              }}
+                              className="form-control parsed-input"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="parsed-field">
+                          <label>Deskripsi</label>
+                          <input
+                            type="text"
+                            value={pt.description}
+                            onChange={(e) => updateParsedTransaction(index, 'description', e.target.value)}
+                            className="form-control parsed-input"
+                          />
+                        </div>
+
+                        <div className="parsed-field-row">
+                          <div className="parsed-field" style={{ flex: 1 }}>
+                            <label>Kategori</label>
+                            <select
+                              value={pt.category}
+                              onChange={(e) => updateParsedTransaction(index, 'category', e.target.value)}
+                              className="form-control parsed-input"
+                              style={{ appearance: 'none' }}
+                            >
+                              {(pt.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="parsed-field" style={{ flex: 1 }}>
+                            <label>Tanggal</label>
+                            <input
+                              type="date"
+                              value={pt.date.split('T')[0]}
+                              onChange={(e) => updateParsedTransaction(index, 'date', new Date(e.target.value).toISOString())}
+                              className="form-control parsed-input"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {parsedTransactions.length === 0 ? (
+                  <div className="empty-state" style={{ padding: "2rem" }}>
+                    <p>Semua transaksi telah dihapus</p>
+                    <button className="btn btn-secondary mt-2" onClick={closeScanModal}>
+                      Kembali
+                    </button>
+                  </div>
+                ) : (
+                  <div className="confirm-actions">
+                    <button
+                      className="btn btn-scan w-full"
+                      onClick={handleSaveAll}
+                      disabled={isSavingAll}
+                      id="save-all-btn"
+                    >
+                      {isSavingAll ? (
+                        <>
+                          <span className="scan-loading-dots">
+                            <span></span><span></span><span></span>
+                          </span>
+                          Menyimpan...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={18} />
+                          Simpan Semua ({parsedTransactions.length})
+                        </>
+                      )}
+                    </button>
+                    <button
+                      className="btn btn-secondary w-full"
+                      onClick={() => setIsConfirmModalOpen(false)}
+                      disabled={isSavingAll}
+                    >
+                      Batal
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

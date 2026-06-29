@@ -784,6 +784,8 @@ p {
   border-radius: 14px;
   overflow: hidden;
   transition: var(--transition);
+  min-height:270px;
+  overflow-y: auto;
   animation: cardSlideIn 0.3s ease-out forwards;
 }
 

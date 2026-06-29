@@ -263,6 +263,7 @@ export default function Dashboard() {
     }else{
       setIsScanModalOpen(false);
       setIsModalOpen(false);
+      setScanText("");
       setTransactionType('expense');
       setAmount("");
       setDescription("");

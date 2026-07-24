@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction } from "@/lib/supabase";
-import { ArrowLeft, TrendingUp, TrendingDown, Search, Wallet } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Search, Wallet, PieChart } from "lucide-react";
 import { format, parseISO, isSameDay, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -133,6 +133,9 @@ const filteredTransactions = useMemo(() => {
           </button>
           <h2 style={{ margin: 0 }}>Laporan Keuangan</h2>
         </div>
+        <button className="btn-secondary" style={{ padding: "0.5rem", borderRadius: "12px", width: "auto" }} onClick={() => router.push("/expense-summary")} title="Ringkasan Pengeluaran & AI Summary">
+          <PieChart size={20} color="#a855f7" />
+        </button>
       </div>
 
       {/* Filter Section */}

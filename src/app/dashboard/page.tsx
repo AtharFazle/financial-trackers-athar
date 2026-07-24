@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction } from "@/lib/supabase";
-import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff, ScanText, Check, ChevronLeft, Sparkles, AlertCircle, Mic, MicOff } from "lucide-react";
+import { PlusCircle, MinusCircle, LogOut, TrendingUp, TrendingDown, Wallet, X, Trash2, CalendarDays, Eye, EyeOff, ScanText, Check, ChevronLeft, Sparkles, AlertCircle, Mic, MicOff, PieChart } from "lucide-react";
 import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, startOfMonth, endOfMonth } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -512,6 +512,9 @@ export default function Dashboard() {
           <h2 style={{ margin: 0 }}>{userName}</h2>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn-secondary" style={{ padding: "0.5rem", borderRadius: "12px", width: "auto" }} onClick={() => router.push("/expense-summary")} title="Ringkasan Pengeluaran & AI Summary">
+            <PieChart size={20} color="#a855f7" />
+          </button>
           <button className="btn-secondary" style={{ padding: "0.5rem", borderRadius: "12px", width: "auto" }} onClick={() => router.push("/history")} title="Laporan & Riwayat">
             <CalendarDays size={20} />
           </button>

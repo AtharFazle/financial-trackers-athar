@@ -3,45 +3,53 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User } from "@/lib/supabase";
-import { LogIn, UserPlus, Lock, ArrowLeft } from "lucide-react";
+import { LogIn, UserPlus, Lock, Wallet, ArrowRight } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
-  const [selectedUserForLogin, setSelectedUserForLogin] = useState<User | null>(null);
-  const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => {
-    fetchUsers();
-    // Check if user is already selected in localStorage
+    // Check if user is already saved in localStorage
     const savedUserId = localStorage.getItem("financial_tracker_user_id");
     if (savedUserId) {
       router.push("/dashboard");
     }
   }, [router]);
 
-  const fetchUsers = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !password.trim()) return;
+
+    setLoading(true);
+    setError("");
+
     try {
-      const res = await fetch("/api/auth/users");
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), password }),
+      });
       const json = await res.json();
-      
-      if (!res.ok) throw new Error(json.error || "Gagal memuat pengguna");
-      setUsers(json.data || []);
+
+      if (!res.ok) throw new Error(json.error || "Login gagal");
+
+      if (json.data) {
+        selectUser(json.data);
+      }
     } catch (err: any) {
-      console.error("Error fetching users:", err.message);
-    } finally {
+      setError(err.message || "Gagal masuk. Periksa nama & password Anda.");
       setLoading(false);
     }
   };
 
-  const handleCreateUser = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserName.trim() || !newUserPassword.trim()) return;
+    if (!name.trim() || !password.trim()) return;
 
     setLoading(true);
     setError("");
@@ -50,44 +58,18 @@ export default function Home() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newUserName.trim(), password: newUserPassword }),
+        body: JSON.stringify({ name: name.trim(), password }),
       });
       const json = await res.json();
 
-      if (!res.ok) throw new Error(json.error || "Gagal membuat pengguna");
+      if (!res.ok) throw new Error(json.error || "Gagal membuat profil");
 
       if (json.data) {
         selectUser(json.data);
       }
     } catch (err: any) {
       console.error("Error creating user:", err.message);
-      setError("Gagal membuat profil. Silakan coba lagi.");
-      setLoading(false);
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUserForLogin) return;
-    
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: selectedUserForLogin.id, password: loginPassword }),
-      });
-      const json = await res.json();
-
-      if (!res.ok) throw new Error(json.error || "Password salah!");
-
-      if (json.data) {
-        selectUser(json.data);
-      }
-    } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Gagal membuat profil. Silakan coba nama lain.");
       setLoading(false);
     }
   };
@@ -99,120 +81,171 @@ export default function Home() {
   };
 
   return (
-    <div className="container">
+    <div className="container" style={{ justifyContent: "center" }}>
       <div className="auth-container">
-        <div className="auth-card glass">
-          <h1 className="mb-2">Financial Tracker</h1>
-          <p className="mb-4">
-            {selectedUserForLogin 
-              ? `Masukkan password untuk ${selectedUserForLogin.name}` 
-              : "Pilih atau buat profil untuk mulai mencatat keuangan Anda."}
-          </p>
+        <div className="auth-card glass" style={{ padding: "2rem" }}>
+          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "16px",
+                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 1rem",
+                boxShadow: "0 8px 24px rgba(99, 102, 241, 0.3)",
+              }}
+            >
+              <Wallet size={28} color="#fff" />
+            </div>
+            <h1 className="mb-1" style={{ fontSize: "1.75rem" }}>
+              Financial Tracker
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: 0 }}>
+              Kelola dan lacak transaksi keuangan Anda secara pintar.
+            </p>
+          </div>
 
-          {error && <p style={{ color: "var(--danger)", marginBottom: "1rem", fontSize: "0.875rem" }}>{error}</p>}
+          {/* Mode Switcher Tabs */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0.5rem",
+              background: "rgba(15, 23, 42, 0.6)",
+              padding: "4px",
+              borderRadius: "12px",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <button
+              className={`btn ${activeTab === "login" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.5rem", fontSize: "0.875rem", borderRadius: "10px", width: "100%" }}
+              onClick={() => {
+                setActiveTab("login");
+                setError("");
+              }}
+            >
+              Masuk
+            </button>
+            <button
+              className={`btn ${activeTab === "register" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.5rem", fontSize: "0.875rem", borderRadius: "10px", width: "100%" }}
+              onClick={() => {
+                setActiveTab("register");
+                setError("");
+              }}
+            >
+              Daftar Baru
+            </button>
+          </div>
 
-          {selectedUserForLogin ? (
-            // Login Form
-            <form onSubmit={handleLogin} className="form-group" style={{ animation: "fadeIn 0.3s ease" }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <input
-                  type="password"
-                  className="form-control"
-                  placeholder="Password..."
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  autoFocus
-                  required
-                />
+          {error && (
+            <div
+              style={{
+                background: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                color: "var(--danger)",
+                padding: "0.75rem",
+                borderRadius: "10px",
+                marginBottom: "1.25rem",
+                fontSize: "0.85rem",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {activeTab === "login" ? (
+            /* Login Form */
+            <form onSubmit={handleLogin} className="form-group">
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    Nama Profil
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Masukkan nama profil Anda..."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    placeholder="Masukkan password..."
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
                 <button
                   type="submit"
-                  className="btn btn-primary"
-                  disabled={!loginPassword.trim() || loading}
+                  className="btn btn-primary mt-2"
+                  disabled={!name.trim() || !password.trim() || loading}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
                 >
-                  <LogIn size={20} />
-                  {loading ? 'Memeriksa...' : 'Masuk'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setSelectedUserForLogin(null);
-                    setLoginPassword("");
-                    setError("");
-                  }}
-                >
-                  <ArrowLeft size={20} />
-                  Kembali
+                  <LogIn size={18} />
+                  {loading ? "Memeriksa..." : "Masuk ke Dashboard"}
                 </button>
               </div>
             </form>
           ) : (
-            // Create & List Profile
-            <>
-              <form onSubmit={handleCreateUser} className="form-group">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            /* Register Form */
+            <form onSubmit={handleRegister} className="form-group">
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    Nama Profil Baru
+                  </label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Nama Profil Baru..."
-                    value={newUserName}
-                    onChange={(e) => setNewUserName(e.target.value)}
-                    disabled={loading}
+                    placeholder="Contoh: Athar"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoFocus
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    Password Profil
+                  </label>
                   <input
                     type="password"
                     className="form-control"
-                    placeholder="Password Profil Baru..."
-                    value={newUserPassword}
-                    onChange={(e) => setNewUserPassword(e.target.value)}
-                    disabled={loading}
+                    placeholder="Buat password aman..."
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                   />
-                  <button
-                    type="submit"
-                    className="btn btn-primary mt-2"
-                    disabled={!newUserName.trim() || !newUserPassword.trim() || loading}
-                  >
-                    <UserPlus size={20} />
-                    Buat Profil Baru
-                  </button>
                 </div>
-              </form>
 
-              <div style={{ margin: "2rem 0", display: "flex", alignItems: "center", gap: "1rem" }}>
-                <hr style={{ flex: 1, borderColor: "var(--surface-border)" }} />
-                <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>ATAU PILIH PROFIL</span>
-                <hr style={{ flex: 1, borderColor: "var(--surface-border)" }} />
+                <button
+                  type="submit"
+                  className="btn btn-primary mt-2"
+                  disabled={!name.trim() || !password.trim() || loading}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+                >
+                  <UserPlus size={18} />
+                  {loading ? "Memproses..." : "Buat Profil & Masuk"}
+                </button>
               </div>
-
-              <div className="user-list">
-                {loading ? (
-                  <p>Memuat profil...</p>
-                ) : users.length === 0 ? (
-                  <p style={{ color: "var(--text-secondary)" }}>Belum ada profil terdaftar.</p>
-                ) : (
-                  users.map((user) => (
-                    <button
-                      key={user.id}
-                      className="user-item"
-                      onClick={() => {
-                        setSelectedUserForLogin(user);
-                        setError("");
-                      }}
-                    >
-                      <div className="user-avatar">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ margin: 0, fontSize: "1rem" }}>{user.name}</h3>
-                      </div>
-                      <Lock size={16} color="var(--text-secondary)" />
-                    </button>
-                  ))
-                )}
-              </div>
-            </>
+            </form>
           )}
         </div>
       </div>

@@ -658,7 +658,7 @@ export default function ExpenseSummaryPage() {
                     onClick={() => toggleCategoryExpand(group.category)}
                     style={{
                       display: "flex",
-                      justify: "space-between",
+                      justifyContent: "space-between",
                       alignItems: "center",
                       cursor: "pointer",
                     }}
@@ -737,7 +737,7 @@ export default function ExpenseSummaryPage() {
                           key={item.id}
                           style={{
                             display: "flex",
-                            justify: "space-between",
+                            justifyContent: "space-between",
                             alignItems: "center",
                             padding: "0.4rem 0.6rem",
                             borderRadius: "8px",
